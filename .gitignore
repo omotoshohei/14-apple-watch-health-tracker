@@ -1,0 +1,49 @@
+# Temporary files
+tmp/
+output/
+input/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.venv/
+venv/
+env/
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Apple Health private input and generated reports
+export.xml
+output/
+
+# Logs
+logs/
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Steering files (task management - temporary)
+.steering/*
+!.steering/.gitkeep
+
+.claude/settings.local.json
