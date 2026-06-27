@@ -10,8 +10,8 @@
   - 役割や内容が直感的に理解できる具体的な名前を付けます。
   - 例: `target_year`, `parse_health_records()`, `calculate_sleep_duration()`
 - **定数名**: `UPPER_SNAKE_CASE` (大文字とアンダースコア)
-  - スクリプト全体で共有される不変の値（目標値、モデル名、RecordTypeマッピングなど）。
-  - 例: `METRIC_DEFINITIONS`, `DEFAULT_GEMINI_MODEL`, `GOAL_SLEEP_HOURS`
+  - スクリプト全体で共有される不変の値（目標値、RecordTypeマッピングなど）。
+  - 例: `METRIC_DEFINITIONS`, `GOAL_SLEEP_HOURS`
 - **クラス名**: `PascalCase`
   - 将来クラスを定義する場合に使用します。
   - 例: `ReportGenerator`, `XMLStreamParser`
@@ -36,15 +36,15 @@ def filter_data_by_month(df: pd.DataFrame, year: int, month: int) -> pd.DataFram
   すべての主要な関数には、関数の役割、引数の型と説明、戻り値の型と説明を記述します。
 
 ```python
-def get_gemini_insight(metric_name: str, stats: Dict[str, float]) -> str:
-    """Gemini API を使用して健康指標の英語サマリーを生成する。
+def build_stats_summary(stats: MetricStats, unit: str) -> list[StatSummaryItem]:
+    """健康指標の表示用月次統計サマリーを生成する。
 
     Args:
-        metric_name (str): 分析対象の指標名 (例: 'Sleep Duration')
-        stats (Dict[str, float]): 平均値や達成率などの統計情報
+        stats (MetricStats): 平均値、最大値、最小値、達成率などの統計情報
+        unit (str): 表示する単位
 
     Returns:
-        str: Geminiによって生成された1〜2文の英語インサイトテキスト
+        list[StatSummaryItem]: HTMLテンプレートに渡す表示用統計項目
     """
     # 実装
 ```
@@ -61,11 +61,11 @@ def get_gemini_insight(metric_name: str, stats: Dict[str, float]) -> str:
 ## エラーハンドリング規約
 
 1. **事前検証 (Fail-fast)**:
-   - スクリプト実行開始時に、必要な環境変数 `GEMINI_API_KEY` の設定および `export.xml` ファイルの存在チェックを行い、問題があれば即座に明確なエラーメッセージを出力して処理を終了します。
+   - スクリプト実行開始時に、`export.xml` ファイルの存在チェックを行い、問題があれば即座に明確なエラーメッセージを出力して処理を終了します。
 2. **個別のエラーハンドリングと処理継続**:
-   - 5つの指標のレポート生成において、ある1つの指標で Gemini API 呼び出しに失敗した（タイムアウトや制限等）場合、スクリプト全体を落とすのではなく、その指標のみ「サマリーコメントを代替テキスト（プレースホルダー）」に置換して処理を継続します。
+   - 5つの指標のレポート生成において、ある1つの指標に有効日がない場合でも、スクリプト全体を落とすのではなく、その指標の統計値を `N/A` として処理を継続します。
 3. **例外の具体的なキャッチ**:
-   - `except Exception:` のような広すぎるキャッチは避け、`FileNotFoundError`, `xml.etree.ElementTree.ParseError`, `google.genai.errors.APIError`, `google.genai.errors.ClientError`, `google.genai.errors.ServerError` など、発生が想定される例外クラスを特定してキャッチします。
+   - `except Exception:` のような広すぎるキャッチは避け、`FileNotFoundError`, `xml.etree.ElementTree.ParseError`, `ValueError` など、発生が想定される例外クラスを特定してキャッチします。
 
 ---
 
@@ -87,7 +87,7 @@ uv venv
 source .venv/bin/activate
 
 # 3. 必要な依存パッケージのインストール
-uv pip install pandas matplotlib google-genai jinja2 pytest ruff
+uv pip install pandas matplotlib jinja2 pytest ruff
 ```
 
 ---
@@ -112,7 +112,7 @@ uv pip install pandas matplotlib google-genai jinja2 pytest ruff
 - `test`: テストコードの追加・修正
 - `chore`: 設定ファイルやパッケージ依存関係の変更
 
-例: `feat(api): Gemini API との連携処理を実装`
+例: `feat(report): 月次統計サマリーを実装`
 
 ---
 
@@ -127,21 +127,4 @@ uv pip install pandas matplotlib google-genai jinja2 pytest ruff
   - 例: `test_parse_xml_emptyFile_raisesValueError`
 
 ### 3. モック (Mock) の使用
-- Gemini API の呼び出しなどのネットワーク通信が発生する処理や、実行環境に依存する部分は、`unittest.mock` を用いてモック化し、テスト実行時に外部通信が発生しないように設計します。
-
-```python
-# Gemini API のテスト例 (Mock使用)
-from unittest.mock import MagicMock, patch
-import pytest
-
-@patch('health_monthly_report.client.models.generate_content')
-def test_get_gemini_insight_success(mock_generate):
-    # Mock レスポンスの設定
-    mock_response = MagicMock()
-    mock_response.text = "Your sleep was consistent this month."
-    mock_generate.return_value = mock_response
-
-    # テスト対象関数の呼び出しとアサーション
-    insight = get_gemini_insight("Sleep", {"average": 7.5})
-    assert insight == "Your sleep was consistent this month."
-```
+- ファイルI/Oや重いグラフ生成など、実行環境に依存する部分は、必要に応じて `unittest.mock` を用いてテスト対象の責務を絞ります。

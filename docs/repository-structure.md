@@ -35,8 +35,8 @@
 ### 1. ルートディレクトリ
 
 #### `src/health_monthly_report.py`
-- **役割**: レポート生成のすべての処理（XMLロード、パース、集計、グラフ画像生成、Gemini API呼び出し、HTMLレポート出力）を行う Python スクリプト本体。
-- **実装形態**: 内部で論理的・構造的に整理された関数群（例: `parse_xml()`, `aggregate_metrics()`, `generate_charts()`, `get_gemini_insight()`, `render_html()` など）で構成。
+- **役割**: レポート生成のすべての処理（XMLロード、パース、集計、グラフ画像生成、統計サマリー生成、HTMLレポート出力）を行う Python スクリプト本体。
+- **実装形態**: 内部で論理的・構造的に整理された関数群（例: `parse_xml()`, `aggregate_metrics()`, `generate_charts()`, `build_stats_summary()`, `render_html()` など）で構成。
 
 #### `export.xml` (Git管理外)
 - **役割**: AppleヘルスケアAppからエクスポートされたヘルスデータ。ユーザー自身が手動でリポジトリルートに配置します。
@@ -49,8 +49,8 @@
 本プロジェクトの設計や規約を定義する永続ドキュメントが格納されます。
 
 - **`product-requirements.md`**: プロダクトの目的、ペルソナ、KPI、機能要件を定義。
-- **`functional-design.md`**: XMLデータのパースルール、集計ロジック、Geminiプロンプト仕様、HTMLのUI設計を定義。
-- **`architecture.md`**: テクノロジースタック、処理レイヤー、パフォーマンス目標、セキュリティ（APIキー管理）を定義。
+- **`functional-design.md`**: XMLデータのパースルール、集計ロジック、統計サマリー仕様、HTMLのUI設計を定義。
+- **`architecture.md`**: テクノロジースタック、処理レイヤー、パフォーマンス目標、セキュリティを定義。
 - **`repository-structure.md`**: リポジトリ構成、ファイル配置規則、Git除外設定を定義（本ドキュメント）。
 - **`development-guidelines.md`**: コーディング規約、テスト方法、`uv` を用いた開発環境のセットアップ方法を定義。
 - **`glossary.md`**: 各種健康指標の定義、目標値、ドメイン用語を定義。
@@ -64,7 +64,7 @@
 - **`test_health_monthly_report.py`**:
   - `parse_xml` のストリーミング処理テスト（小さなダミーXMLを使用して検証）。
   - `aggregate_metrics` による集計および欠損値の判定テスト。
-  - `get_gemini_insight` の呼び出しロジックのモックテスト。
+  - `build_stats_summary` の表示値生成テスト。
 - **`conftest.py`**:
   - テスト用のダミーXMLデータやダミーの pandas DataFrame を生成する共通フィクスチャを記述。
 

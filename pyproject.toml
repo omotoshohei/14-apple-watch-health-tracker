@@ -1,3 +1,16 @@
+[project]
+name = "apple-watch-health-tracker"
+version = "0.1.0"
+description = "Apple Watch Health Monthly Report Generator"
+requires-python = ">=3.12"
+dependencies = [
+    "pandas>=2.2.0",
+    "matplotlib>=3.9.0",
+    "jinja2>=3.1.0",
+    "streamlit>=1.35.0",
+    "python-dotenv>=1.0.0",
+]
+
 [tool.pytest.ini_options]
 pythonpath = ["src"]
 testpaths = ["tests", "src"]

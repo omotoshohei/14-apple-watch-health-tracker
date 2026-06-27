@@ -3,11 +3,11 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
-from health_monthly_report import (
-    INSIGHT_FALLBACK,
+from health_report import (
     aggregate_daily_metrics,
-    build_insight_prompt,
+    build_stats_summary,
     calculate_stats,
+    clean_and_prefix_svg,
     generate_report,
     parse_health_records,
     render_html_report,
@@ -130,35 +130,52 @@ def test_calculate_stats_excludes_missing_days() -> None:
 
     assert stats.average == 6000
     assert stats.maximum == 8000
+    assert stats.minimum == 4000
     assert stats.valid_days == 2
     assert stats.missing_days == 1
     assert stats.achieved_days == 1
     assert stats.achievement_rate == 50
 
 
-def test_build_insight_prompt_marks_missing_values(tmp_path: Path) -> None:
-    xml_path = tmp_path / "export.xml"
-    write_sample_export(xml_path)
-    records = parse_health_records(xml_path, 2026, 2)
-    daily = aggregate_daily_metrics(records, 2026, 2)
-    from health_monthly_report import METRIC_DEFINITIONS
+def test_build_stats_summary_formats_display_values() -> None:
+    series = pd.Series([8000.0, pd.NA, 4000.0], dtype="Float64")
 
-    metric = METRIC_DEFINITIONS["steps"]
-    stats = calculate_stats(daily["steps"], metric.target_value)
+    stats = calculate_stats(series, 8000)
+    summary = build_stats_summary(stats, "steps")
 
-    prompt = build_insight_prompt(metric, daily["steps"], stats, 2026, 2)
+    assert [(item.label, item.value, item.unit) for item in summary] == [
+        ("Average", "6000.0", "steps"),
+        ("Maximum", "8000.0", "steps"),
+        ("Minimum", "4000.0", "steps"),
+        ("Goal Achieved Rate", "50.0", "%"),
+    ]
 
-    assert "2026-02-01: 3500.0" in prompt
-    assert "2026-02-02: N/A" in prompt
-    assert "Missing Days" in prompt
+
+def test_build_stats_summary_handles_no_valid_days() -> None:
+    series = pd.Series([pd.NA, pd.NA], dtype="Float64")
+
+    stats = calculate_stats(series, 8000)
+    summary = build_stats_summary(stats, "steps")
+
+    assert [(item.label, item.value, item.unit) for item in summary] == [
+        ("Average", "N/A", "steps"),
+        ("Maximum", "N/A", "steps"),
+        ("Minimum", "N/A", "steps"),
+        ("Goal Achieved Rate", "N/A", "%"),
+    ]
 
 
 def test_render_html_report_writes_five_slide_report(tmp_path: Path) -> None:
     slides = [
         {
             "name": f"Metric {index}",
-            "image_path": f"assets/metric_{index}.png",
-            "insight": "A short insight.",
+            "chart_svg": f"<svg id='dummy_{index}'>...</svg>",
+            "stats_summary": [
+                {"label": "Average", "value": "1.0", "unit": "unit"},
+                {"label": "Maximum", "value": "2.0", "unit": "unit"},
+                {"label": "Minimum", "value": "0.5", "unit": "unit"},
+                {"label": "Goal Achieved Rate", "value": "50.0", "unit": "%"},
+            ],
             "target_value": "1",
             "unit": "unit",
         }
@@ -169,35 +186,63 @@ def test_render_html_report_writes_five_slide_report(tmp_path: Path) -> None:
 
     html = output.read_text(encoding="utf-8")
     assert html.count('<section class="slide">') == 5
+    assert "Monthly Stats" in html
+    assert "Goal Achieved Rate" in html
+    assert "Gemini Insight" not in html
     assert "1920px" in html
     assert "1080px" in html
 
 
-def test_validate_inputs_requires_xml_and_api_key(tmp_path: Path) -> None:
+def test_validate_inputs_requires_xml_only(tmp_path: Path) -> None:
     xml_path = tmp_path / "export.xml"
 
     with pytest.raises(FileNotFoundError):
-        validate_inputs(xml_path, "key")
+        validate_inputs(xml_path)
 
     xml_path.write_text("<HealthData />", encoding="utf-8")
-    with pytest.raises(ValueError, match="GEMINI_API_KEY"):
-        validate_inputs(xml_path, None)
+    assert validate_inputs(xml_path) is None
 
 
-def test_generate_report_uses_fallback_when_gemini_fails(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
+def test_generate_report_outputs_stats_without_api_key(tmp_path: Path) -> None:
     xml_path = tmp_path / "export.xml"
     write_sample_export(xml_path)
 
-    def fail_insight(*args: object, **kwargs: object) -> str:
-        raise RuntimeError(INSIGHT_FALLBACK)
-
-    monkeypatch.setattr("health_monthly_report.get_gemini_insight", fail_insight)
-
-    output = generate_report(xml_path, 2026, 2, tmp_path / "output", api_key="dummy")
+    output = generate_report(xml_path, 2026, 2, tmp_path / "output")
 
     html = output.read_text(encoding="utf-8")
     assert output.name == "apple_watch_health_monthly_report_2026_02.html"
-    assert html.count(INSIGHT_FALLBACK) == 5
-    assert (tmp_path / "output" / "assets" / "sleep_duration.png").exists()
+    assert "Average" in html
+    assert "Maximum" in html
+    assert "Minimum" in html
+    assert "Goal Achieved Rate" in html
+    assert "Gemini Insight" not in html
+    assert '<svg id="sleep_duration_svg" class="matplotlib-svg"' in html
+    assert not (tmp_path / "output" / "assets").exists()
+
+
+def test_clean_and_prefix_svg() -> None:
+    raw_svg = """<?xml version="1.0" encoding="utf-8" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN"
+  "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg id="old-root-id" class="old-root-class"
+     xmlns:xlink="http://www.w3.org/1999/xlink" width="10" height="10">
+  <defs>
+    <style type="text/css">*{stroke: red}</style>
+  </defs>
+  <g id="figure_1">
+    <path id="path_1" clip-path="url(#clip_1)" xlink:href="#sym_1" href="#sym_2"/>
+  </g>
+</svg>"""
+
+    processed = clean_and_prefix_svg(raw_svg, "test-metric@foo")
+    # Verify prefix sanitization
+    assert 'id="test-metric_foo_svg"' in processed
+    assert 'class="matplotlib-svg"' in processed
+    assert 'id="test-metric_foo_figure_1"' in processed
+    assert 'id="test-metric_foo_path_1"' in processed
+    assert 'clip-path="url(#test-metric_foo_clip_1)"' in processed
+    assert 'xlink:href="#test-metric_foo_sym_1"' in processed
+    assert 'href="#test-metric_foo_sym_2"' in processed
+    assert "#test-metric_foo_svg *{stroke: red}" in processed
+    assert "<?xml" not in processed
+    assert "<!DOCTYPE" not in processed
