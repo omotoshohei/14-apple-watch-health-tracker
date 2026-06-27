@@ -43,7 +43,6 @@ Thumbs.db
 *~
 
 # Steering files (task management - temporary)
-.steering/*
-!.steering/.gitkeep
+.steering/
 
-.claude/settings.local.json
+.claude/
