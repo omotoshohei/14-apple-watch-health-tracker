@@ -314,7 +314,7 @@ def generate_chart(
     labels = [f"{day:%m/%d}" for day in series.index]
     values = [None if pd.isna(value) else float(value) for value in series]
 
-    fig, ax = plt.subplots(figsize=(13, 6.6), dpi=150)
+    fig, ax = plt.subplots(figsize=(15.5, 5.2), dpi=150)
     fig.patch.set_facecolor("none")
     ax.set_facecolor("none")
     x_positions = list(range(len(labels)))
@@ -439,7 +439,7 @@ HTML_TEMPLATE = Template(
     }
     .chart {
       width: 100%;
-      height: 520px;
+      height: 540px;
       object-fit: contain;
       background: none;
     }
