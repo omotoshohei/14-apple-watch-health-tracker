@@ -13,6 +13,7 @@ main.py
 requirements.txt
 report.py
 html_utils.py
+preprocess.py
 ```
 
 Copy the contents from this folder into the matching editor files.

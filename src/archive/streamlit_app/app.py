@@ -12,7 +12,11 @@ from dotenv import load_dotenv
 # Add src directory to path so we can import health_report
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from health_report import convert_html_images_to_data_uris, generate_report
+from health_report import (
+    convert_html_images_to_data_uris,
+    generate_report,
+    preprocess_xml_to_csv,
+)
 
 # Load environment variables
 load_dotenv()
@@ -193,8 +197,13 @@ with col_preview:
                 )
 
                 # Generate report (this saves HTML + assets/png charts to temp_output_dir)
+                temp_csv_path = (
+                    Path(temp_dir) / f"health_metrics_{target_year}_{target_month:02d}.csv"
+                )
+                preprocess_xml_to_csv(temp_xml_path, target_year, target_month, temp_csv_path)
+
                 report_path = generate_report(
-                    xml_path=temp_xml_path,
+                    csv_path=temp_csv_path,
                     target_year=target_year,
                     target_month=target_month,
                     output_dir=temp_output_dir,

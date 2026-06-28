@@ -10,13 +10,19 @@ Apple WatchのヘルスケアAppからエクスポートしたデータ (`export
 
 1. **Apple Health XMLのストリーミング解析**
    - 数百MBを超える巨大な `export.xml` ファイルでも、メモリ消費を最小限に抑えながら高速にパースします。
-2. **5つの健康指標の可視化と集計**
+2. **11の健康指標の可視化と集計**
    - 以下の指標を抽出し、目標ライン（水平破線）付きの日別棒グラフを生成します：
      - **Sleep Duration**（睡眠時間、目標: 7時間）
      - **Steps**（歩数、目標: 8,000歩）
      - **Active Energy Burned**（活動カロリー、目標: 500 kcal）
      - **Exercise Time**（エクササイズ時間、目標: 30分）
      - **Stand Hours**（スタンド時間、目標: 12時間）
+     - **Sleep Onset Time**（就寝時間、目標: 深夜 0:00 (24.0)）
+     - **Wake Time**（起床時間、目標: 翌 07:00 (31.0)）
+     - **Awake Count**（途中覚醒回数、目標: 0回）
+     - **Awake Duration**（途中覚醒時間、目標: 0分）
+     - **Longest Awake Duration**（最長途中覚醒時間、目標: 0分）
+     - **First Morning Awake Time**（朝の最初の覚醒時間、目標: 翌 06:00 (30.0)）
 3. **欠損値の適切なハンドリング**
    - 未装着日などのデータ欠損を正しく識別し、統計（平均値など）に影響を与えないように除外して計算します。
 4. **決定的な月次統計サマリー**
@@ -56,14 +62,16 @@ Apple WatchのヘルスケアAppからエクスポートしたデータ (`export
 │   ├── development-guidelines.md # 開発ガイドライン
 │   └── glossary.md            # 用語集
 ├── src/                       # Pythonソースコード
+│   ├── archive/               # アーカイブされた未使用のモジュール
+│   │   ├── google-cloud-run-function-inline/
+│   │   └── streamlit_app/
 │   ├── cli/                   # CLI実行用コード
 │   │   └── health_monthly_report.py
-│   ├── streamlit_app/         # Streamlit Web UI実行用コード
-│   │   └── app.py
 │   └── health_report/         # 共通レポート生成モジュール
 │       ├── __init__.py
-│       ├── report.py          # 解析・グラフ生成・統計サマリー生成ロジック
-│       └── html.py            # 自己完結HTML変換ヘルパー
+│       ├── html.py            # 自己完結HTML変換ヘルパー
+│       ├── preprocess.py      # XMLからCSVへの前処理モジュール
+│       └── report.py          # 解析・グラフ生成・統計サマリー生成ロジック
 ├── tests/                     # テストコードディレクトリ
 │   ├── test_cli.py            # CLIのスモークテスト
 │   ├── test_health_monthly_report.py # 共通モジュールのテスト
@@ -115,35 +123,39 @@ uv run python create_sample_data.py
 python create_sample_data.py
 ```
 
-### 4. レポート生成の実行 (Web UI版)
+### 4. レポート生成の実行 (Web UI版 - アーカイブ済み)
 
-Streamlitを用いたWeb UIから直感的にレポートの生成・閲覧・ダウンロードが可能です。
-
-```bash
-# Web UIの起動
-.venv/bin/streamlit run src/streamlit_app/app.py
-```
-
-- **ファイルのアップロード**: 画面上のファイルアップローダーに `export.xml` をドラッグ＆ドロップまたはファイル選択してアップロードします。
-- **ファイルサイズ上限**: デフォルトで `.streamlit/config.toml` にて最大 **1024MB (1GB)** までアップロードできるように設定されています。さらに大きいデータをアップロードする場合は、`server.maxUploadSize` の値を変更してください。
-- **ダウンロード**: 生成成功後、「Download Self-Contained Report HTML」ボタンから画像が埋め込まれた自己完結型HTMLをダウンロードできます。
+※ Web UI (Streamlit) 機能は現在非推奨となり、`src/archive/` に移動されました。現在は CLI 版のみをサポート・推奨しています。
 
 ### 5. レポート生成の実行 (CLI版)
 
-対象の年・月を指定してスクリプトを実行します。外部APIキーは不要です。
+対象の年・月を指定し、データ入力元を選択して実行します。本ツールは、XMLから中間CSVを生成する「前処理」と、CSVからHTMLを生成する「レポート生成」の2つのステップで構成されます。
 
+#### A. XMLから一括でレポート生成を行う場合 (デフォルト)
 ```bash
-# 例: 2026年6月のレポートを生成する場合
+# 例: 2026年6月のXMLからCSVを抽出し、それをもとにHTMLレポートを生成する
 uv run python src/cli/health_monthly_report.py --year 2026 --month 6 --xml input/export.xml --output-dir output
 ```
+実行が完了すると、中間CSV (`data/preprocess/health_metrics_2026_06.csv`) と HTMLレポート (`output/apple_watch_health_monthly_report_2026_06.html`) の両方が出力されます。
 
-実行が完了すると、`output/` ディレクトリに以下のファイルが生成されます：
-- **レポートHTML**: `output/apple_watch_health_monthly_report_2026_06.html` (グラフはインラインSVGとして埋め込まれ、このファイル単体で完結します)
+#### B. 既存のCSVデータからHTMLレポートのみを再生成する場合
+XMLの巨大なパース処理をスキップし、すでに抽出済みのCSVを使用して高速にHTMLを再生成できます。
+```bash
+# 例: 既存のCSVを指定してHTMLレポートのみを出力する
+uv run python src/cli/health_monthly_report.py --year 2026 --month 6 --csv data/preprocess/health_metrics_2026_06.csv --output-dir output
+```
+
+#### C. XMLからCSVデータのみを生成する場合 (前処理のみ)
+HTMLレポートを生成せず、データ抽出 (CSV出力) のみを行いたい場合に指定します。
+```bash
+# 例: CSV抽出のみを実行する
+uv run python src/cli/health_monthly_report.py --year 2026 --month 6 --xml input/export.xml --preprocess-only --csv-output output/my_metrics_2026_06.csv
+```
 
 ### 6. ショーケース（デモ出力）の確認
 
 ポートフォリオのデモンストレーション用として、ダミーデータから事前に生成したレポートHTMLが同梱されています。
-- **デモレポート**: [output-demo/apple_watch_health_monthly_report_2026_06.html](file:///Users/sho/code/01-project/14-apple-watch-health-tracker/output-demo/apple_watch_health_monthly_report_2026_06.html)
+- **デモレポート**: [output-demo/apple_watch_health_monthly_report_2026_05.html](output-demo/apple_watch_health_monthly_report_2026_05.html)
 
 このファイルをブラウザでダブルクリックするだけで、グラフ描画やダークモードなどの表示スタイル、16:9スライドによるレスポンシブなスライド閲覧動作を今すぐ確認することができます。
 
@@ -154,9 +166,9 @@ uv run python src/cli/health_monthly_report.py --year 2026 --month 6 --xml input
 月次レポート生成の手順は、Antigravity用スキルとしても定義しています。
 
 - **CLI版**: `.agent/skills/monthly-report-cli/SKILL.md`
-  - `input/*.xml` から対象XMLを選択し、`uv run python src/cli/health_monthly_report.py ...` で `output/` にHTMLを生成します。
-- **Streamlit版**: `.agent/skills/monthly-report-streamlit/SKILL.md`
-  - Streamlit Web UIを起動し、ブラウザからXMLをアップロードして自己完結HTMLをプレビュー・ダウンロードします。
+  - 前処理済みCSV、または `input/*.xml` から `uv run python src/cli/health_monthly_report.py ...` でHTMLを生成します。
+- **前処理版**: `.agent/skills/preprocess/SKILL.md`
+  - Apple Health XMLから対象月の6指標を抽出し、日別CSVを生成します。
 
 ---
 

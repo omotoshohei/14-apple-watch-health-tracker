@@ -178,14 +178,17 @@ def apple_watch_health_report(request: Request) -> Response:
     try:
         from html_utils import convert_html_images_to_data_uris
         from report import generate_report
+        from preprocess import preprocess_xml_to_csv
 
         xml_path = temp_dir / "export.xml"
+        csv_path = temp_dir / "health_metrics.csv"
         output_dir = temp_dir / "output"
         uploaded_file.save(xml_path)
 
         year, month = parse_target_period(request)
+        preprocess_xml_to_csv(xml_path, year, month, csv_path)
         report_path = generate_report(
-            xml_path=xml_path,
+            csv_path=csv_path,
             target_year=year,
             target_month=month,
             output_dir=output_dir,

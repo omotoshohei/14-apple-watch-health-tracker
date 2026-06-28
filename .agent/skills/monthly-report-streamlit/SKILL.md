@@ -15,28 +15,13 @@ description: Streamlit Web UIでApple Health XMLをアップロードし、Apple
 
 - Streamlit アプリのエントリポイントは `src/streamlit_app/app.py` です。
 - アップロードする Apple Health export XML は、ユーザーがブラウザ上のファイルアップローダーで選択します。
-- レポート生成には `GEMINI_API_KEY` または `GOOGLE_API_KEY` が必要です。
+- **本機能は完全にローカルで処理を行うため、`GEMINI_API_KEY` などの外部 API キーは不要です。**
 - Streamlit のアップロード上限は `.streamlit/config.toml` の `server.maxUploadSize = 1024` により 1024MB です。
 - Streamlit 版は生成物を一時ディレクトリで作成し、画像を埋め込んだ自己完結HTMLをダウンロードボタンで提供します。
 
 ## 実行手順
 
-### ステップ 1: APIキーの確認
-
-1. `GEMINI_API_KEY` または `GOOGLE_API_KEY` が環境変数として利用可能か確認します。
-   ```bash
-   test -n "$GEMINI_API_KEY" || test -n "$GOOGLE_API_KEY"
-   ```
-2. どちらも未設定の場合は、ユーザーに以下のいずれかを設定するよう案内し、Streamlit 起動前に処理を停止します。
-   ```bash
-   export GEMINI_API_KEY="..."
-   ```
-   または:
-   ```bash
-   export GOOGLE_API_KEY="..."
-   ```
-
-### ステップ 2: Streamlitアプリの起動
+### ステップ 1: Streamlitアプリの起動
 
 プロジェクトルートから以下を実行します。
 
@@ -56,29 +41,30 @@ python -m streamlit run src/streamlit_app/app.py
 http://localhost:8501
 ```
 
-### ステップ 3: Web UIで対象年月を選択
+### ステップ 2: Web UIで対象年月を選択
 
 1. サイドバーの `Report Period` で対象年を選択します。
 2. サイドバーの `Month` で対象月を選択します。
 3. 月は `1` から `12` の整数として扱われ、ダウンロードファイル名ではゼロ埋め2桁になります。
 
-### ステップ 4: XMLファイルをアップロード
+### ステップ 3: XMLファイルをアップロード
 
 1. メイン画面の `Upload export.xml from Apple Health` に Apple Health export XML をアップロードします。
 2. XML をアップロードするまで `Generate Monthly Report` ボタンは無効です。
 3. XML が 1024MB を超える場合は、`.streamlit/config.toml` の `server.maxUploadSize` を調整する必要があります。
 
-### ステップ 5: レポート生成
+### ステップ 4: レポート生成
 
 1. `Generate Monthly Report` を押します。
-2. 進行中は以下の処理が行われます。
-   - アップロードXMLを一時ファイルへ保存
-   - `health_report.generate_report()` で月次レポートとグラフ画像を生成
-   - 生成HTML内の画像を Data URI に変換
-   - 自己完結HTMLとしてダウンロード可能にする
+2. 進行中は以下の処理がバックグラウンドで行われます。
+   - アップロードされた XML を一時フォルダ内の `uploaded_export.xml` に保存。
+   - `preprocess_xml_to_csv()` を実行し、一時フォルダ内に中間 CSV ファイルを生成。
+   - 生成された CSV を入力として `generate_report(csv_path=...)` を実行し、HTML レポートとグラフを生成。
+   - 生成HTML内の画像を Data URI に変換。
+   - 自己完結HTMLとしてダウンロード可能にする。
 3. 成功時は画面上にプレビューが表示され、ダウンロードボタンが有効になります。
 
-### ステップ 6: 出力確認
+### ステップ 5: 出力確認
 
 1. `Download Self-Contained Report HTML` ボタンが表示されていることを確認します。
 2. ダウンロードファイル名は以下の形式です。
@@ -89,11 +75,6 @@ http://localhost:8501
 4. プレビューが表示され、ダウンロード可能なHTMLが生成された場合のみ、成功として報告します。
 
 ## 失敗時の対応
-
-### APIキーが未設定の場合
-
-- `GEMINI_API_KEY` または `GOOGLE_API_KEY` が必要であることを伝えます。
-- `.env` またはシェル環境にキーを設定してから Streamlit を再起動するよう案内します。
 
 ### Streamlitが起動しない場合
 
@@ -111,24 +92,12 @@ http://localhost:8501
 ### レポート生成が失敗する場合
 
 - 画面に表示された `Failed to generate report: ...` のエラー文を保持します。
-- 対象年月、XML内容、APIキー、依存関係を順に確認します。
+- 対象年月、XML内容、依存関係を順に確認します。
 - 失敗時に成功したとは報告しません。
-
-### ダウンロードボタンが表示されない場合
-
-- プレビュー生成またはHTML変換に失敗している可能性があります。
-- Streamlit の画面エラーとターミナルログを確認します。
-- `Download Self-Contained Report HTML` が表示されない限り、生成成功とは扱いません。
 
 ## 検証
 
-必要に応じて、関連するテストを実行します。
-
-```bash
-python -m pytest tests/test_cli.py tests/test_html.py
-```
-
-Streamlit UI自体を検証する場合は、アプリ起動後にブラウザで以下を確認します。
+必要に応じて、Streamlit UIの動作検証を行います。アプリ起動後にブラウザで以下を確認します。
 
 - ページが表示されること。
 - 年月を選択できること。
