@@ -111,7 +111,7 @@ METRIC_DEFINITIONS: dict[str, MetricDefinition] = {
         name="Sleep Duration",
         record_type="HKCategoryTypeIdentifierSleepAnalysis",
         unit="hours",
-        target_value=7.0,
+        target_value=6.5,
         aggregation="duration_hours",
         color="#38bdf8",
     ),
@@ -120,7 +120,7 @@ METRIC_DEFINITIONS: dict[str, MetricDefinition] = {
         name="Steps",
         record_type="HKQuantityTypeIdentifierStepCount",
         unit="steps",
-        target_value=8000.0,
+        target_value=15000.0,
         aggregation="sum",
         color="#34d399",
     ),
@@ -156,7 +156,7 @@ METRIC_DEFINITIONS: dict[str, MetricDefinition] = {
         name="Sleep Onset Time",
         record_type="HKCategoryTypeIdentifierSleepAnalysis",
         unit="hours",
-        target_value=24.0,
+        target_value=25.5,
         aggregation="sleep_onset",
         color="#818cf8",
         lower_is_better=True,
@@ -166,7 +166,7 @@ METRIC_DEFINITIONS: dict[str, MetricDefinition] = {
         name="Wake Time",
         record_type="HKCategoryTypeIdentifierSleepAnalysis",
         unit="hours",
-        target_value=31.0,
+        target_value=32.5,
         aggregation="wake_time",
         color="#14b8a6",
         lower_is_better=True,
@@ -176,7 +176,7 @@ METRIC_DEFINITIONS: dict[str, MetricDefinition] = {
         name="Awake Count",
         record_type="HKCategoryTypeIdentifierSleepAnalysis",
         unit="times",
-        target_value=0.0,
+        target_value=1.0,
         aggregation="awake_count",
         color="#f97316",
         lower_is_better=True,
@@ -186,7 +186,7 @@ METRIC_DEFINITIONS: dict[str, MetricDefinition] = {
         name="Awake Duration",
         record_type="HKCategoryTypeIdentifierSleepAnalysis",
         unit="minutes",
-        target_value=0.0,
+        target_value=5.0,
         aggregation="awake_duration",
         color="#ef4444",
         lower_is_better=True,
@@ -196,7 +196,7 @@ METRIC_DEFINITIONS: dict[str, MetricDefinition] = {
         name="Longest Awake Duration",
         record_type="HKCategoryTypeIdentifierSleepAnalysis",
         unit="minutes",
-        target_value=0.0,
+        target_value=5.0,
         aggregation="longest_awake_duration",
         color="#dc2626",
         lower_is_better=True,
@@ -206,7 +206,7 @@ METRIC_DEFINITIONS: dict[str, MetricDefinition] = {
         name="First Morning Awake Time",
         record_type="HKCategoryTypeIdentifierSleepAnalysis",
         unit="hours",
-        target_value=30.0,
+        target_value=31.0,
         aggregation="first_morning_awake_time",
         color="#06b6d4",
         lower_is_better=False,
@@ -1074,6 +1074,6 @@ def generate_report(
         )
 
     html_path = (
-        output_dir / f"apple_watch_health_monthly_report_{target_year}_{target_month:02d}.html"
+        output_dir / f"apple_watch_health_daily_report_{target_year}_{target_month:02d}.html"
     )
     return render_html_report(slides, html_path, target_year, target_month)

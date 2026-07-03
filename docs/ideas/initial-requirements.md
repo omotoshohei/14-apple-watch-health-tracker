@@ -43,7 +43,7 @@ target_month = 2
 HTML形式で出力する。
 
 ```text
-output/apple_watch_health_monthly_report_2026_02.html
+output/apple_watch_health_daily_report_2026_02.html
 ```
 
 ### 4.2 スライドサイズ
@@ -214,7 +214,7 @@ health_report/
   export.xml
   health_monthly_report.py
   output/
-    apple_watch_health_monthly_report_2026_02.html
+    apple_watch_health_daily_report_2026_02.html
     assets/
       sleep_duration.png
       steps.png

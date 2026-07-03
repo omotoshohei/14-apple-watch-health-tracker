@@ -2,30 +2,39 @@
 
 ## プロジェクト構造
 
-本プロジェクトは、ローカル環境で動作する単一の Python スクリプトを中心に構成します。現時点のリポジトリにはサンプルコードが残っているため、以下はMVP実装後の目標構成です。
+本プロジェクトは、Apple Health XMLをローカルで解析し、月次HTMLレポートと複数月トレンドHTMLレポートを生成する Python CLI ツールです。現在はCLIエントリーポイントと共通モジュールを分離し、テストしやすい構成にしています。
 
 ```
-14-apple-watch-health-tracker-vs/ (リポジトリルート)
+14-apple-watch-health-tracker/ (リポジトリルート)
+├── .agent/                    # Antigravity用スキル定義
+├── .streamlit/                # Streamlit設定（アーカイブUI用）
 ├── docs/                      # 各種仕様書・定義ドキュメント
-│   ├── product-requirements.md # プロダクト要求定義書 (PRD)
-│   ├── functional-design.md    # 機能設計書
-│   ├── architecture.md        # 技術仕様書 (アーキテクチャ設計書)
-│   ├── repository-structure.md # リポジトリ構造定義書 (本ドキュメント)
-│   ├── development-guidelines.md # 開発ガイドライン
-│   └── glossary.md            # 用語集
 ├── src/                       # Pythonソースコード
-│   └── health_monthly_report.py # レポート生成スクリプト本体
-├── tests/                     # pytest用テストコードディレクトリ
-│   ├── test_health_monthly_report.py # スクリプト本体の機能に対するテスト
-│   └── conftest.py            # pytest用共通フィクスチャ定義
-├── output/                    # スクリプト実行結果の出力先 (Git管理外)
-│   └── assets/                # 生成された各指標のグラフ画像 (*.png) (Git管理外)
-├── export.xml                 # Apple Healthからエクスポートしたデータ (手動配置、Git管理外)
+│   ├── archive/               # 過去実装・非推奨UIの保管場所
+│   ├── cli/                   # CLIエントリーポイント
+│   │   ├── aggregate_monthly_metrics.py
+│   │   ├── aggregate_weekly_metrics.py
+│   │   ├── health_monthly_report.py
+│   │   ├── health_weekly_report.py
+│   │   ├── health_trend_report.py
+│   │   └── merge_metrics.py
+│   └── health_report/         # 共通レポート生成モジュール
+│       ├── __init__.py
+│       ├── html.py
+│       ├── preprocess.py
+│       ├── report.py
+│       ├── trend.py
+│       └── weekly.py
+├── tests/                     # pytest用テストコード
+├── data/preprocess/           # 前処理済みCSV・デモ用CSV
+├── output-demo/               # Git管理対象のショーケースPDF
+├── input/                     # Apple Health XML配置先 (Git管理外)
+├── output/                    # スクリプト実行結果 (Git管理外)
+├── export.xml                 # Apple HealthエクスポートXML (Git管理外)
 ├── requirements.txt           # Python依存関係定義
-├── pyproject.toml             # 任意: パッケージ化やruff/pytest設定を集約する場合に追加
+├── pyproject.toml             # プロジェクト設定、依存関係、pytest/ruff設定
 ├── README.md                  # セットアップ手順・実行手順の解説
-├── .gitignore                 # Git除外設定ファイル
-└── .python-version            # 使用するPythonバージョン定義
+└── .gitignore                 # Git除外設定ファイル
 ```
 
 ---
@@ -34,12 +43,27 @@
 
 ### 1. ルートディレクトリ
 
-#### `src/health_monthly_report.py`
-- **役割**: レポート生成のすべての処理（XMLロード、パース、集計、グラフ画像生成、統計サマリー生成、HTMLレポート出力）を行う Python スクリプト本体。
-- **実装形態**: 内部で論理的・構造的に整理された関数群（例: `parse_xml()`, `aggregate_metrics()`, `generate_charts()`, `build_stats_summary()`, `render_html()` など）で構成。
+#### `src/cli/`
+- **役割**: ユーザーが直接実行するCLIを配置します。
+- **主なファイル**:
+  - `health_monthly_report.py`: XMLまたは日別CSVから月次HTMLレポートを生成します。
+  - `merge_metrics.py`: `data/preprocess/health_metrics_YYYY_MM.csv` を結合して `health_metrics_all.csv` を生成します。
+  - `aggregate_monthly_metrics.py`: 日別CSVを月次集計CSVへ変換します。
+  - `health_trend_report.py`: 月次集計CSVから複数月トレンドHTMLレポートを生成します。
+  - `aggregate_weekly_metrics.py`: 日別CSVを週次集計CSVへ変換します。
+  - `health_weekly_report.py`: 週次集計CSVから複数週トレンドHTMLレポートを生成します。
+
+#### `src/health_report/`
+- **役割**: CLIから利用される共通ロジックを配置します。
+- **主なファイル**:
+  - `report.py`: XMLパース、日別集計、統計計算、月次HTML生成。
+  - `preprocess.py`: XMLからCSVへの前処理、日別CSVから月次CSVへの集計。
+  - `trend.py`: 複数月トレンドグラフとHTML生成。
+  - `weekly.py`: 月曜始まりの週次集計、週次トレンドグラフとHTML生成。
+  - `html.py`: HTML内画像のData URI化など、自己完結HTML用のヘルパー。
 
 #### `export.xml` (Git管理外)
-- **役割**: AppleヘルスケアAppからエクスポートされたヘルスデータ。ユーザー自身が手動でリポジトリルートに配置します。
+- **役割**: AppleヘルスケアAppからエクスポートされたヘルスデータ。通常は `input/export.xml` に配置します。
 - **セキュリティ**: 個人情報を含むため、Gitで追跡されないように `.gitignore` で除外します。
 
 ---
@@ -61,22 +85,36 @@
 
 スクリプトが正しく動作するかを検証するための pytest 用テストコードを格納します。
 
-- **`test_health_monthly_report.py`**:
-  - `parse_xml` のストリーミング処理テスト（小さなダミーXMLを使用して検証）。
-  - `aggregate_metrics` による集計および欠損値の判定テスト。
-  - `build_stats_summary` の表示値生成テスト。
-- **`conftest.py`**:
-  - テスト用のダミーXMLデータやダミーの pandas DataFrame を生成する共通フィクスチャを記述。
+- **`test_health_monthly_report.py`**: XMLパース、日別集計、統計計算、時刻表示などの共通ロジックを検証します。
+- **`test_cli.py`**: CLI引数、エラー処理、レポート生成のスモークテストを行います。
+- **`test_preprocess.py`**: XMLからCSVへの前処理、日別CSVから月次CSVへの集計を検証します。
+- **`test_report_csv.py`**: 既存CSV入力からの月次レポート生成を検証します。
+- **`test_trend.py`**: 複数月トレンドレポート生成を検証します。
+- **`test_weekly.py`**: 週次集計CSV生成と週次トレンドレポート生成を検証します。
+- **`test_html.py`**: 自己完結HTML変換を検証します。
 
 ---
 
-### 4. `output/` (成果物出力ディレクトリ - Git管理外)
+### 4. `data/preprocess/`
+
+前処理済みの日別CSVと、複数月レポート用の集計CSVを格納します。
+
+- **`health_metrics_YYYY_MM.csv`**: 対象年月の日別健康指標CSV。
+- **`health_metrics_all.csv`**: 複数月の日別CSVを結合した全期間CSV。
+- **`health_metrics_monthly.csv`**: トレンドレポート用の月次集計CSV。
+- **`health_metrics_weekly.csv`**: 週次トレンドレポート用の週次集計CSV。
+
+### 5. `output/` (成果物出力ディレクトリ - Git管理外)
 
 スクリプト実行時に自動生成されるディレクトリであり、最終成果物および中間ファイルを格納します。
 
-- **`apple_watch_health_monthly_report_YYYY_MM.html`**: 指定した年月のHTMLレポート。
-- **`assets/`**:
-  - HTML内で読み込まれる、各指標の日別棒グラフ画像（`sleep_duration.png`, `steps.png` など）が保存されるサブディレクトリ。
+- **`apple_watch_health_daily_report_YYYY_MM.html`**: 指定した年月のHTMLレポート。
+- **`apple_watch_health_monthly_report.html`**: 複数月トレンドHTMLレポート。
+- **`apple_watch_health_weekly_report.html`**: 複数週トレンドHTMLレポート。
+
+### 6. `output-demo/` (ショーケース - Git管理対象)
+
+ダミーデータから生成したPDFレポートを配置します。GitHub上で生成物の見た目を確認できるようにするため、`output/` と違って Git 管理対象にします。
 
 ---
 
@@ -86,7 +124,8 @@
 
 | ファイル種別 | 配置先 | 命名規則 | 例 |
 |------------|--------|---------|-----|
-| メインスクリプト | `src/` | `snake_case.py` | `health_monthly_report.py` |
+| CLI | `src/cli/` | `snake_case.py` | `health_monthly_report.py` |
+| 共通モジュール | `src/health_report/` | `snake_case.py` | `report.py` |
 | テストコード | `tests/` | `test_[対象ファイル名].py` | `test_health_monthly_report.py` |
 | テスト共通設定 | `tests/` | `conftest.py` | `conftest.py` |
 
@@ -95,8 +134,7 @@
 | ファイル種別 | 配置先 | 命名規則 |
 |------------|--------|---------|
 | 依存関係定義 | ルートディレクトリ | `requirements.txt` |
-| プロジェクト設定（任意） | ルートディレクトリ | `pyproject.toml` |
-| バージョン定義 | ルートディレクトリ | `.python-version` |
+| プロジェクト設定 | ルートディレクトリ | `pyproject.toml` |
 | Git除外定義 | ルートディレクトリ | `.gitignore` |
 
 ---
@@ -131,6 +169,7 @@ __pycache__/
 
 # Apple Watch 生データ (個人情報)
 export.xml
+input/
 
 # 環境変数・APIキー
 .env

@@ -4,7 +4,9 @@ from unittest.mock import patch
 
 import pytest
 
+from cli.aggregate_weekly_metrics import main as aggregate_weekly_main
 from cli.health_monthly_report import main
+from cli.health_weekly_report import main as health_weekly_main
 
 
 def test_cli_help(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -152,3 +154,43 @@ def test_cli_mutually_exclusive_error(monkeypatch: pytest.MonkeyPatch, tmp_path:
     )
     code = main()
     assert code != 0
+
+
+def test_aggregate_weekly_cli_help(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(sys, "argv", ["aggregate_weekly_metrics.py", "--help"])
+    with pytest.raises(SystemExit) as excinfo:
+        aggregate_weekly_main()
+    assert excinfo.value.code == 0
+
+
+def test_health_weekly_cli_help(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(sys, "argv", ["health_weekly_report.py", "--help"])
+    with pytest.raises(SystemExit) as excinfo:
+        health_weekly_main()
+    assert excinfo.value.code == 0
+
+
+def test_aggregate_weekly_cli_missing_input(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "aggregate_weekly_metrics.py",
+            "--input",
+            str(tmp_path / "missing.csv"),
+            "--output",
+            str(tmp_path / "weekly.csv"),
+        ],
+    )
+    assert aggregate_weekly_main() == 1
+
+
+def test_health_weekly_cli_missing_input(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["health_weekly_report.py", "--csv", str(tmp_path / "missing.csv")],
+    )
+    assert health_weekly_main() == 1

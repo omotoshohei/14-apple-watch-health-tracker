@@ -227,7 +227,7 @@ def test_generate_report_outputs_stats_without_api_key(tmp_path: Path) -> None:
     output = generate_report(csv_path, 2026, 2, tmp_path / "output")
 
     html = output.read_text(encoding="utf-8")
-    assert output.name == "apple_watch_health_monthly_report_2026_02.html"
+    assert output.name == "apple_watch_health_daily_report_2026_02.html"
     assert "Average" in html
     assert "Maximum" in html
     assert "Minimum" in html

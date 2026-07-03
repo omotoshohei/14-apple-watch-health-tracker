@@ -1,8 +1,9 @@
 from pathlib import Path
 
 import pandas as pd
+import pytest
 
-from health_report.preprocess import preprocess_xml_to_csv
+from health_report.preprocess import aggregate_daily_csv_to_monthly_csv, preprocess_xml_to_csv
 
 
 def record_xml(record_type: str, value: str, start: str, end: str, unit: str | None = None) -> str:
@@ -148,3 +149,62 @@ def test_preprocess_xml_to_csv(tmp_path: Path) -> None:
     assert pd.isna(row_2["sleep_onset"])
     assert pd.isna(row_2["wake_time"])
     assert pd.isna(row_2["awake_count"])
+
+
+def test_aggregate_daily_csv_to_monthly_csv(tmp_path: Path) -> None:
+    input_csv = tmp_path / "health_metrics_all.csv"
+    output_csv = tmp_path / "health_metrics_monthly.csv"
+    input_csv.write_text(
+        "\n".join(
+            [
+                "date,sleep_duration,steps,active_energy,exercise_time,stand_hours,"
+                "sleep_onset,wake_time,awake_count,awake_duration,longest_awake_duration,"
+                "first_morning_awake_time",
+                "2026-02-01,7.0,8000,500,30,12,24.0,31.0,0,0,0,30.0",
+                "2026-02-02,NA,6000,300,20,10,25.0,32.0,1,10,10,31.0",
+                "2026-03-01,8.0,10000,600,40,13,23.0,30.0,0,0,0,29.0",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    result_path = aggregate_daily_csv_to_monthly_csv(input_csv, output_csv)
+
+    assert result_path == output_csv
+    assert output_csv.exists()
+
+    df = pd.read_csv(output_csv, keep_default_na=False, na_values=["NA"])
+    assert list(df.columns) == [
+        "month",
+        "metric",
+        "metric_name",
+        "unit",
+        "target_value",
+        "lower_is_better",
+        "average",
+        "maximum",
+        "minimum",
+        "achieved_days",
+        "valid_days",
+        "missing_days",
+        "achievement_rate",
+    ]
+    assert len(df) == 22
+
+    feb_steps = df[(df["month"] == "2026-02") & (df["metric"] == "steps")].iloc[0]
+    assert float(feb_steps["average"]) == 7000.0
+    assert float(feb_steps["maximum"]) == 8000.0
+    assert float(feb_steps["minimum"]) == 6000.0
+    assert int(feb_steps["achieved_days"]) == 0
+    assert int(feb_steps["valid_days"]) == 2
+    assert int(feb_steps["missing_days"]) == 26
+    assert float(feb_steps["achievement_rate"]) == 0.0
+
+    feb_sleep_duration = df[(df["month"] == "2026-02") & (df["metric"] == "sleep_duration")].iloc[0]
+    assert float(feb_sleep_duration["average"]) == 7.0
+    assert int(feb_sleep_duration["valid_days"]) == 1
+    assert int(feb_sleep_duration["missing_days"]) == 27
+
+    feb_sleep_onset = df[(df["month"] == "2026-02") & (df["metric"] == "sleep_onset")].iloc[0]
+    assert float(feb_sleep_onset["average"]) == pytest.approx(24.5)
+    assert int(feb_sleep_onset["achieved_days"]) == 2

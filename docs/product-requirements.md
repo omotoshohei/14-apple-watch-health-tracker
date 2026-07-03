@@ -65,12 +65,18 @@ Apple Watchユーザーが、ヘルスケアAppからエクスポートしたデ
   - 横軸に日付（例: "02/01", "02/02" ...）、縦軸に指標の値をとる棒グラフを生成すること。
   - 欠損日はグラフ上で空白（棒を描画しない）として表現すること。
   - 各グラフに以下の目標値を示す水平の破線（目標ライン）を描画すること：
-    - Sleep Duration: 7 hours
-    - Steps: 8,000 steps
+    - Sleep Duration: 6.5 hours
+    - Steps: 15,000 steps
     - Active Energy Burned: 500 kcal
     - Exercise Time: 30 minutes
     - Stand Hours: 12 hours
-  - 生成したグラフを画像ファイル（png形式）として `output/assets/` ディレクトリに保存すること。
+    - Sleep Onset Time: 25.5 hours (翌 01:30、lower is better)
+    - Wake Time: 32.5 hours (翌 08:30、lower is better)
+    - Awake Count: 1 time (lower is better)
+    - Awake Duration: 5 minutes (lower is better)
+    - Longest Awake Duration: 5 minutes (lower is better)
+    - First Morning Awake Time: 31.0 hours (翌 07:00)
+  - 生成したグラフをSVGとしてHTMLに埋め込み、単体で閲覧できるHTMLを出力すること。
 - **優先度**: P0(必須)
 
 #### F-4: 指標別月次統計サマリーの生成
@@ -85,9 +91,9 @@ Apple Watchユーザーが、ヘルスケアAppからエクスポートしたデ
 - **ユーザーストーリー**: ユーザーとして、大画面やディスプレイでスライドとして閲覧するために、1920x1080px (16:9) のサイズで構成された美しいHTMLレポートを出力したい。
 - **受け入れ条件**:
   - 1枚あたり 1920 x 1080px のアスペクト比 16:9 のスライドを縦に並べた単一の HTML ファイルを出力すること。
-  - カバーページや総合サマリーページは含めず、対象の5指標のスライド（計5枚）で構成すること。
+  - カバーページや総合サマリーページは含めず、対象の11指標のスライド（計11枚）で構成すること。
   - 各スライドは、見出し（英語）、対象年月、日別棒グラフ画像、および月次統計サマリーを含むこと。
-  - 出力ファイルパスは `output/apple_watch_health_monthly_report_YYYY_MM.html` とすること。
+  - 出力ファイルパスは `output/apple_watch_health_daily_report_YYYY_MM.html` とすること。
 - **優先度**: P0(必須)
 
 ---

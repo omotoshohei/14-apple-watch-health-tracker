@@ -14,7 +14,7 @@
 | 技術 | バージョン | 用途 | 選定理由 |
 |------|-----------|------|----------|
 | `pandas` | 2.2.x | データ加工・日別集計 | 大容量の時系列データをフィルタリング、グループ化、欠損値処理する上でデファクトスタンダードであり、実装を簡潔にできるため。 |
-| `matplotlib` | 3.9.x | グラフ画像 (.png) の生成 | 日別の棒グラフや目標ラインのカスタマイズ、画像出力が容易で安定しているため。 |
+| `matplotlib` | 3.9.x | SVGグラフの生成 | 日別の棒グラフ、複数月の折れ線グラフ、目標ラインのカスタマイズが容易で安定しているため。 |
 | `jinja2` | 3.1.x | HTMLレポートのテンプレートエンジン | HTML/CSSデザインとPythonコードのロジックを綺麗に分離でき、テンプレートの再利用や制御構文（ループなど）が利用できるため。 |
 
 ### 開発・テストツール
@@ -27,13 +27,11 @@
 
 ## アーキテクチャパターン
 
-本システムは、ユーザーのローカルマシンで完結するバッチスクリプト形式のツールです。要件に基づき、開発と配布の容易さを重視して**単一のPythonスクリプトファイル (`src/health_monthly_report.py`)**として実装します。
-
-ただし、保守性とテスト性を考慮し、スクリプトの内部構造は以下の論理的なレイヤー（責務）に分離した関数およびクラスで構築します。
+本システムは、ユーザーのローカルマシンで完結するバッチ形式のCLIツールです。現在はユーザーが実行する `src/cli/` と、再利用可能な共通ロジック `src/health_report/` を分離しています。
 
 ```
 ┌──────────────────────────────────────────────────────────┐
-│  src/health_monthly_report.py (エントリーポイント & 制御) │
+│  src/cli/*.py (CLIエントリーポイント & 処理フロー制御)    │
 └──────────────────────────────────────────────────────────┘
                             │ (処理フロー制御)
                             ▼
@@ -42,7 +40,7 @@
 ├──────────────────────────────────────────────────────────┤
 │  2. Aggregator (pandasによるデータフィルタ・集計・欠損処理)│
 ├──────────────────────────────────────────────────────────┤
-│  3. Graph Generator (Matplotlibによるグラフ描画・画像保存)  │
+│  3. Graph Generator (MatplotlibによるSVGグラフ生成)        │
 ├──────────────────────────────────────────────────────────┤
 │  4. Statistics Calculator (欠損日除外の統計算出)          │
 ├──────────────────────────────────────────────────────────┤
@@ -61,7 +59,7 @@
 - **実装方針**: 指標別の集計ルール（単純合計か、時間ユニーク数か等）に基づいて集計し、対象月の日付マスタを基準に左結合（Left Join）することで欠損日を検出する。
 
 #### 3. Graph Generator
-- **責務**: pandas DataFrame から各指標の日別棒グラフを描画し、目標ラインを重ね合わせた上で、PNG画像として保存する。
+- **責務**: pandas DataFrame から各指標の日別棒グラフまたは複数月折れ線グラフを描画し、目標ラインを重ね合わせたSVGを生成する。
 - **実装方針**: Matplotlib を使用し、ダークテーマ（背景色 `#0f172a` 等）に合わせたカラースキームで描画する。
 
 #### 4. Statistics Calculator
@@ -69,7 +67,7 @@
 - **実装方針**: 欠損日を除外した有効日のみを母数にし、有効日がない場合は表示値を `N/A` にする。
 
 #### 5. HTML Generator
-- **責務**: 生成されたグラフ画像へのパスと統計サマリーを Jinja2 テンプレートに流し込み、最終的なHTMLファイルを出力する。
+- **責務**: 生成されたSVGと統計サマリーを Jinja2 テンプレートに流し込み、単体で閲覧できるHTMLファイルを出力する。
 
 ---
 
@@ -80,9 +78,11 @@
 
 | データ種別 | 配置先 | フォーマット | 理由 |
 |-----------|----------|-------------|------|
-| 元データ | プロジェクトルート (`export.xml`) | XML | AppleヘルスケアAppからエクスポートされる標準形式。 |
-| グラフ画像 | `output/assets/[metric].png` | PNG | HTMLに埋め込むための軽量な画像フォーマット。 |
-| 成果物 | `output/apple_watch_health_monthly_report_YYYY_MM.html` | HTML | ユーザーがブラウザで直接閲覧できるスライド形式。 |
+| 元データ | `input/export.xml` または任意のXMLパス | XML | AppleヘルスケアAppからエクスポートされる標準形式。 |
+| 前処理データ | `data/preprocess/health_metrics_YYYY_MM.csv` | CSV | 大容量XMLの再パースを避け、HTMLを高速に再生成するため。 |
+| 月次集計データ | `data/preprocess/health_metrics_monthly.csv` | CSV | 複数月トレンドレポートの入力として再利用するため。 |
+| 週次集計データ | `data/preprocess/health_metrics_weekly.csv` | CSV | 複数週トレンドレポートの入力として再利用するため。 |
+| 成果物 | `output/*.html` | HTML | ユーザーがブラウザで直接閲覧できるスライド形式。 |
 
 ### バックアップ・データ管理
 - ローカルツールであるため、自動バックアップ機能は実装しません。
@@ -121,20 +121,24 @@
 
 ```python
 METRIC_DEFINITIONS = {
-    'sleep_duration': {
-        'name': 'Sleep Duration',
-        'record_type': 'HKCategoryValueSleepAnalysis',
-        'unit': 'hours',
-        'target_value': 7.0,
-        # ...集計ロジックやグラフ設定など
-    },
-    'steps': {
-        'name': 'Steps',
-        'record_type': 'HKQuantityTypeIdentifierStepCount',
-        'unit': 'steps',
-        'target_value': 8000.0,
-        # ...
-    }
+    "sleep_duration": MetricDefinition(
+        key="sleep_duration",
+        name="Sleep Duration",
+        record_type="HKCategoryTypeIdentifierSleepAnalysis",
+        unit="hours",
+        target_value=6.5,
+        aggregation="duration_hours",
+        color="#38bdf8",
+    ),
+    "steps": MetricDefinition(
+        key="steps",
+        name="Steps",
+        record_type="HKQuantityTypeIdentifierStepCount",
+        unit="steps",
+        target_value=15000.0,
+        aggregation="sum",
+        color="#34d399",
+    ),
 }
 ```
 このように設計することで、新規指標の追加時はメタデータ定義を追加し、必要に応じて集計ヘルパー関数を調整するだけで拡張可能とします。

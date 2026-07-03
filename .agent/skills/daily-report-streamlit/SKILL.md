@@ -5,7 +5,7 @@ description: Streamlit Web UIでApple Health XMLをアップロードし、Apple
 
 # Apple Watch 月次レポート生成スキル Streamlit版 (Antigravity版)
 
-このスキルは、Streamlit Web UI (`src/streamlit_app/app.py`) を起動し、ブラウザから Apple Health export XML をアップロードして、Apple Watch の月次HTMLレポートを生成・プレビュー・ダウンロードするためのガイドです。
+このスキルは、アーカイブ済みの Streamlit Web UI (`src/archive/streamlit_app/app.py`) を起動し、ブラウザから Apple Health export XML をアップロードして、Apple Watch の月次HTMLレポートを生成・プレビュー・ダウンロードするためのガイドです。
 
 ## 使用タイミング
 
@@ -13,7 +13,7 @@ description: Streamlit Web UIでApple Health XMLをアップロードし、Apple
 
 ## 前提
 
-- Streamlit アプリのエントリポイントは `src/streamlit_app/app.py` です。
+- Streamlit アプリのエントリポイントは `src/archive/streamlit_app/app.py` です。
 - アップロードする Apple Health export XML は、ユーザーがブラウザ上のファイルアップローダーで選択します。
 - **本機能は完全にローカルで処理を行うため、`GEMINI_API_KEY` などの外部 API キーは不要です。**
 - Streamlit のアップロード上限は `.streamlit/config.toml` の `server.maxUploadSize = 1024` により 1024MB です。
@@ -26,13 +26,13 @@ description: Streamlit Web UIでApple Health XMLをアップロードし、Apple
 プロジェクトルートから以下を実行します。
 
 ```bash
-.venv/bin/streamlit run src/streamlit_app/app.py
+.venv/bin/streamlit run src/archive/streamlit_app/app.py
 ```
 
 `.venv/bin/streamlit` が存在しない場合は、依存関係のセットアップ状況を確認してから、利用可能な Streamlit 実行方法で起動します。
 
 ```bash
-python -m streamlit run src/streamlit_app/app.py
+python -m streamlit run src/archive/streamlit_app/app.py
 ```
 
 起動後、ターミナルに表示されるローカルURLをユーザーに伝えます。通常は以下の形式です。
@@ -69,7 +69,7 @@ http://localhost:8501
 1. `Download Self-Contained Report HTML` ボタンが表示されていることを確認します。
 2. ダウンロードファイル名は以下の形式です。
    ```text
-   apple_watch_health_monthly_report_YYYY_MM.html
+   apple_watch_health_daily_report_YYYY_MM.html
    ```
 3. Streamlit 版では `output/` への永続保存ではなく、ブラウザからのダウンロードを生成結果として扱います。
 4. プレビューが表示され、ダウンロード可能なHTMLが生成された場合のみ、成功として報告します。
@@ -110,4 +110,4 @@ http://localhost:8501
 - Streamlit アプリのローカルURLをユーザーに共有していること。
 - 使用した対象年、対象月、XMLファイルが明確であること。
 - プレビューが表示されていること。
-- `apple_watch_health_monthly_report_YYYY_MM.html` をダウンロードできること。
+- `apple_watch_health_daily_report_YYYY_MM.html` をダウンロードできること。

@@ -153,7 +153,7 @@ def test_generate_report_from_csv_success(tmp_path: Path) -> None:
     output_dir = tmp_path / "output"
     report_path = generate_report(csv_path, 2026, 2, output_dir)
     assert report_path.exists()
-    assert report_path.name == "apple_watch_health_monthly_report_2026_02.html"
+    assert report_path.name == "apple_watch_health_daily_report_2026_02.html"
 
     html = report_path.read_text(encoding="utf-8")
     assert "Average" in html
